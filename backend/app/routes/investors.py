@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -73,8 +73,22 @@ def express_interest():
     startup_id = data.get("startupId")
     requested_amount = data.get("requestedAmount")
     equity_percentage = data.get("equityPercentage")
-    if not startup_id or requested_amount in (None, "") or equity_percentage in (None, ""):
-        return error_response("startupId, requestedAmount, and equityPercentage are required", 400)
+    if not startup_id or requested_amount in (None, ""):
+        return error_response("startupId and requestedAmount are required", 400)
+
+    startup = Startup.query.get_or_404(startup_id)
+    investor_id = int(get_jwt_identity())
+    has_accepted_contribution = InvestorInterest.query.filter_by(
+        startup_id=startup_id,
+        investor_id=investor_id,
+        status="ACCEPTED",
+    ).first() is not None
+
+    if equity_percentage in (None, ""):
+        if has_accepted_contribution:
+            equity_percentage = 0
+        else:
+            return error_response("equityPercentage is required for the first contribution", 400)
 
     try:
         requested_amount = float(requested_amount)
@@ -87,11 +101,8 @@ def express_interest():
     if equity_percentage < 0 or equity_percentage > 100:
         return error_response("equityPercentage must be between 0 and 100", 400)
 
-    startup = Startup.query.get_or_404(startup_id)
     if not startup_accepting_investment(startup):
         return error_response("Startup is not currently accepting investment", 400)
-
-    investor_id = int(get_jwt_identity())
 
     approved_other = sum(item.equity_percentage for item in startup.commitments if item.status == "APPROVED")
     if approved_other + equity_percentage > 100:
@@ -117,7 +128,6 @@ def express_interest():
         investor_notes=data.get("investorNotes"),
     )
     db.session.add(commitment)
-
     startup_user_ids = [member.user_id for member in startup.members]
     admin_user_ids = [user.id for user in User.query.join(User.role).filter_by(name="ADMIN").all()]
     for recipient_user_id in set(startup_user_ids + admin_user_ids):

@@ -11,6 +11,9 @@ function getInvestorInterest(startup, userId) {
   return investorInterests.sort((left, right) => new Date(right.createdAt || 0) - new Date(left.createdAt || 0))[0] || null;
 }
 
+function hasAcceptedInvestorInterest(startup, userId) {
+  return (startup?.interests || []).some((interest) => interest.investorId === userId && interest.status === "ACCEPTED");
+}
 export function useWorkspaceData(user) {
   const [startups, setStartups] = useState([]);
   const [interests, setInterests] = useState([]);
@@ -203,8 +206,12 @@ export function useWorkspaceData(user) {
 
     const form = commitmentForm[startupId] || {};
     const requestedAmount = Number(form.requestedAmount);
-    const equityPercentage = Number(form.equityPercentage);
-    if (!Number.isFinite(requestedAmount) || requestedAmount < 0 || !Number.isFinite(equityPercentage) || equityPercentage < 0) {
+    const requiresEquity = !hasAcceptedInvestorInterest(startup, user?.id);
+    const equityPercentage = requiresEquity ? Number(form.equityPercentage) : 0;
+    if (!Number.isFinite(requestedAmount) || requestedAmount < 0) {
+      return;
+    }
+    if (requiresEquity && (!Number.isFinite(equityPercentage) || equityPercentage < 0)) {
       return;
     }
 
@@ -236,7 +243,7 @@ export function useWorkspaceData(user) {
         body: JSON.stringify({
           startupId,
           requestedAmount,
-          equityPercentage,
+          ...(requiresEquity ? { equityPercentage } : {}),
           investorNotes: form.investorNotes || ""
         })
       });
@@ -467,6 +474,9 @@ export function useWorkspaceData(user) {
     handlePublishStartup,
     handleCreateFundingRound,
     handleAcceptInterest,
+    shouldRequestEquityForStartup(startup) {
+      return !hasAcceptedInvestorInterest(startup, user?.id);
+    },
     handleRejectInterest,
     handleCommitmentDecision,
     handleUpdateStartup,

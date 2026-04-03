@@ -1,10 +1,21 @@
-import SectionCard from "../components/SectionCard";
+﻿import SectionCard from "../components/SectionCard";
 import SearchPanel from "../components/SearchPanel";
 import { useWorkspace } from "../components/AppShell";
 
 export default function OverviewPage() {
-  const { startups, filters, setFilters, isInvestor, commitmentForm, setCommitmentForm, handleInterest, loading, pendingActions, getInterestStatusForStartup } =
-    useWorkspace();
+  const {
+    startups,
+    filters,
+    setFilters,
+    isInvestor,
+    commitmentForm,
+    setCommitmentForm,
+    handleInterest,
+    loading,
+    pendingActions,
+    getInterestStatusForStartup,
+    shouldRequestEquityForStartup
+  } = useWorkspace();
   const publishedStartups = startups.filter((startup) => startup.isPublished).length;
   const openRounds = startups.filter(
     (startup) => !startup.fundingRounds?.length || startup.fundingRounds.some((round) => round.roundStatus === "OPEN")
@@ -78,6 +89,7 @@ export default function OverviewPage() {
             {!startups.length ? <p className="empty-state">No startups match the current filters.</p> : null}
             {startups.map((startup) => {
               const interestState = getInterestStatusForStartup(startup);
+              const requiresEquity = shouldRequestEquityForStartup(startup);
               return (
                 <article key={startup.id} className="startup-item">
                   <div className="startup-item-main">
@@ -113,21 +125,25 @@ export default function OverviewPage() {
                           }
                           disabled={interestState.disabled}
                         />
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.1"
-                          placeholder="Equity % expected"
-                          value={commitmentForm[startup.id]?.equityPercentage || ""}
-                          onChange={(event) =>
-                            setCommitmentForm((current) => ({
-                              ...current,
-                              [startup.id]: { ...(current[startup.id] || {}), equityPercentage: event.target.value }
-                            }))
-                          }
-                          disabled={interestState.disabled}
-                        />
+                        {requiresEquity ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            placeholder="Equity % expected"
+                            value={commitmentForm[startup.id]?.equityPercentage || ""}
+                            onChange={(event) =>
+                              setCommitmentForm((current) => ({
+                                ...current,
+                                [startup.id]: { ...(current[startup.id] || {}), equityPercentage: event.target.value }
+                              }))
+                            }
+                            disabled={interestState.disabled}
+                          />
+                        ) : (
+                          <p className="muted-text">This follow-up contribution does not request extra equity.</p>
+                        )}
                         <button
                           className="primary-btn"
                           onClick={() => handleInterest(startup.id)}

@@ -1,4 +1,4 @@
-import SectionCard from "../components/SectionCard";
+﻿import SectionCard from "../components/SectionCard";
 import StartupForm from "../components/StartupForm";
 import { useWorkspace } from "../components/AppShell";
 
@@ -14,7 +14,8 @@ export default function StartupsPage() {
     handleInterest,
     loading,
     pendingActions,
-    getInterestStatusForStartup
+    getInterestStatusForStartup,
+    shouldRequestEquityForStartup
   } = useWorkspace();
 
   return (
@@ -24,6 +25,7 @@ export default function StartupsPage() {
         <div className="startup-list">
           {startups.map((startup) => {
             const interestState = getInterestStatusForStartup(startup);
+            const requiresEquity = shouldRequestEquityForStartup(startup);
             return (
               <article key={startup.id} className="startup-item">
                 <div>
@@ -52,21 +54,25 @@ export default function StartupsPage() {
                         }
                         disabled={interestState.disabled}
                       />
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        placeholder="Equity % expected"
-                        value={commitmentForm[startup.id]?.equityPercentage || ""}
-                        onChange={(event) =>
-                          setCommitmentForm((current) => ({
-                            ...current,
-                            [startup.id]: { ...(current[startup.id] || {}), equityPercentage: event.target.value }
-                          }))
-                        }
-                        disabled={interestState.disabled}
-                      />
+                      {requiresEquity ? (
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          placeholder="Equity % expected"
+                          value={commitmentForm[startup.id]?.equityPercentage || ""}
+                          onChange={(event) =>
+                            setCommitmentForm((current) => ({
+                              ...current,
+                              [startup.id]: { ...(current[startup.id] || {}), equityPercentage: event.target.value }
+                            }))
+                          }
+                          disabled={interestState.disabled}
+                        />
+                      ) : (
+                        <small className="muted-text">This follow-up contribution does not request extra equity.</small>
+                      )}
                       <textarea
                         rows="2"
                         placeholder="Optional note"
