@@ -1,5 +1,6 @@
-from flask import Flask
+﻿from flask import Flask
 
+from .bootstrap import initialize_database
 from .config import Config
 from .extensions import cors, db, jwt, migrate
 from .routes.auth import auth_bp
@@ -37,6 +38,10 @@ def create_app(config_overrides=None):
     app.register_blueprint(startups_bp, url_prefix="/api/startups")
     app.register_blueprint(investors_bp, url_prefix="/api/investors")
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
+
+    if not app.config.get("TESTING") and app.config.get("AUTO_INIT_DB", True):
+        with app.app_context():
+            initialize_database(seed_admin=app.config.get("SEED_ADMIN_ON_STARTUP", False))
 
     @app.get("/api/health")
     def health_check():
